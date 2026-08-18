@@ -1,9 +1,15 @@
 // ==========================================
-// 設定変数（変更する内容）
+// スクリプトプロパティ初期設定（一度だけ実行して記憶させる）
 // ==========================================
-const SHEET_TENANT = "SaaS管理マスターDB"; // 管理マスターのシート名
-const TEMPLATE_SHEET_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
-const PARENT_FOLDER_ID = "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G"; // 新規追加
+function initializeSystemSettings() {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    "MASTER_SS_ID": "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM",
+    "SHEET_TENANT": "SaaS管理マスターDB",
+    "TEMPLATE_SHEET_ID": "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY",
+    "PARENT_FOLDER_ID": "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G"
+  });
+}
 
 // ==========================================
 // GETリクエスト（ダミーHTMLの返却用）

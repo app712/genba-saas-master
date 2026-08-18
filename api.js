@@ -23,8 +23,13 @@ function doPost(e) {
         return createJsonResponse({ status: "error", message: "メールアドレスとパスワードを入力してください。" });
       }
 
-      const ss = SpreadsheetApp.getActiveSpreadsheet();
-      const tenantSheet = ss.getSheetByName(SHEET_TENANT);
+      // プロパティから動的に環境変数を取得
+      const props = PropertiesService.getScriptProperties();
+      const masterSsId = props.getProperty("MASTER_SS_ID");
+      const sheetTenant = props.getProperty("SHEET_TENANT");
+
+      const ss = SpreadsheetApp.openById(masterSsId);
+      const tenantSheet = ss.getSheetByName(sheetTenant);
       if (!tenantSheet) return createJsonResponse({ status: "error", message: "マスターDBが存在しません。" });
 
       const map = getHeaderMap(tenantSheet);
@@ -97,15 +102,22 @@ function createNewTenant(name, email, password) {
       return createJsonResponse({ status: "error", message: "企業名、メールアドレス、パスワードは必須です。" });
     }
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const tenantSheet = ss.getSheetByName(SHEET_TENANT);
+    // プロパティから動的に環境変数を取得
+    const props = PropertiesService.getScriptProperties();
+    const masterSsId = props.getProperty("MASTER_SS_ID");
+    const sheetTenant = props.getProperty("SHEET_TENANT");
+    const templateSheetId = props.getProperty("TEMPLATE_SHEET_ID");
+    const parentFolderId = props.getProperty("PARENT_FOLDER_ID");
+
+    const ss = SpreadsheetApp.openById(masterSsId);
+    const tenantSheet = ss.getSheetByName(sheetTenant);
 
     // 1. 企業IDと初期管理者IDの生成
     const newId = generateNextCompanyId(tenantSheet);
     const initialAdminId = newId + "-admin";
 
     // 2. Googleドライブのフォルダ構成を作成
-    const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
+    const parentFolder = DriveApp.getFolderById(parentFolderId);
     const rootFolder = parentFolder.createFolder(name + "様_システム一式");
     const rootFolderId = rootFolder.getId();
 
@@ -115,7 +127,7 @@ function createNewTenant(name, email, password) {
     const meiboFolder = rootFolder.createFolder("労働者名簿");
 
     // 3. テンプレートシートをコピーしてルートフォルダに配置
-    const templateFile = DriveApp.getFileById(TEMPLATE_SHEET_ID);
+    const templateFile = DriveApp.getFileById(templateSheetId);
     const newSheet = templateFile.makeCopy(name + "様_データベース", rootFolder);
     const newSheetId = newSheet.getId();
     
