@@ -1,8 +1,9 @@
 // ==========================================
-// 設定変数（必ず一番上で定義）
+// 設定変数（変更する内容）
 // ==========================================
-const SHEET_TENANT = "企業・テナント一覧";
-const TEMPLATE_SHEET_ID = "1SJLWG6neWEt1xpFwfaTokNQQl92Y4rPwvgogE-wp6VA";
+const SHEET_TENANT = "SaaS管理マスターDB"; // 管理マスターのシート名
+const TEMPLATE_SHEET_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
+const PARENT_FOLDER_ID = "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G"; // 新規追加
 
 // ==========================================
 // GETリクエスト（ダミーHTMLの返却用）
