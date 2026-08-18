@@ -1,10 +1,11 @@
 // ==========================================
-// SAAS マスター設定
+// 設定変数（必ず一番上で定義）
 // ==========================================
 const SHEET_TENANT = "企業・テナント一覧";
+const TEMPLATE_SHEET_ID = "1SJLWG6neWEt1xpFwfaTokNQQl92Y4rPwvgogE-wp6VA";
 
 // ==========================================
-// GETリクエスト（管理者用ダッシュボードの表示）
+// GETリクエスト（ダミーHTMLの返却用）
 // ==========================================
 function doGet() {
   return HtmlService.createHtmlOutputFromFile("index")

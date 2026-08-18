@@ -2,16 +2,66 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>現場のミカタ | SaaS管理コンソール</title>
+  <title>SaaSマスター | 新規企業登録</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-light">
-  <div class="container mt-5">
-    <div class="card shadow-sm p-4">
-      <h2 class="text-primary">SaaS管理コンソール</h2>
-      <p>現在、APIサーバーとして稼働中です。</p>
-      <div class="alert alert-info">企業テナント認証APIは正常に待機中です。</div>
+<body class="bg-light p-4">
+  <div class="container card p-4 shadow-sm" style="max-width: 600px; margin: 0 auto;">
+    <h2 class="mb-4">新規企業登録・環境構築</h2>
+    <div class="mb-3">
+      <label>企業ID</label>
+      <input type="text" id="compId" class="form-control" placeholder="例: CP-002">
     </div>
+    <div class="mb-3">
+      <label>企業名</label>
+      <input type="text" id="compName" class="form-control" placeholder="例: 株式会社〇〇">
+    </div>
+    <button onclick="register()" class="btn btn-primary w-100">登録・環境構築開始</button>
+    <div id="result" class="mt-3 text-center fw-bold"></div>
   </div>
+
+  <script>
+    // ==========================================
+    // 設定変数（必ず一番上で定義）
+    // ==========================================
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwQGQjYm1jbEZdR_Fuy0SCErqB282NyZGRlVJdvLiahNOjTMaaxShhFnx6fzWJGqpb_/exec";
+
+    async function register() {
+      const compId = document.getElementById('compId').value;
+      const compName = document.getElementById('compName').value;
+      const resultDiv = document.getElementById('result');
+
+      if (!compId || !compName) {
+        alert("企業IDと企業名を入力してください。");
+        return;
+      }
+
+      resultDiv.innerText = "環境構築中です。しばらくお待ちください...";
+      resultDiv.className = "mt-3 text-center fw-bold text-secondary";
+
+      try {
+        const data = { action: 'register', companyId: compId, companyName: compName };
+        const res = await fetch(GAS_WEB_APP_URL, { 
+          method: 'POST', 
+          body: JSON.stringify(data),
+          headers: { 'Content-Type': 'text/plain' }
+        });
+        
+        const json = await res.json();
+        if (json.status === "success") {
+          resultDiv.innerText = json.message;
+          resultDiv.className = "mt-3 text-center fw-bold text-success";
+          document.getElementById('compId').value = "";
+          document.getElementById('compName').value = "";
+        } else {
+          resultDiv.innerText = "エラー: " + json.message;
+          resultDiv.className = "mt-3 text-center fw-bold text-danger";
+        }
+      } catch (e) {
+        resultDiv.innerText = "通信エラーが発生しました。";
+        resultDiv.className = "mt-3 text-center fw-bold text-danger";
+      }
+    }
+  </script>
 </body>
 </html>
