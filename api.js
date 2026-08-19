@@ -1,5 +1,5 @@
 // ==========================================
-// 1. 変数定義（必ず一番上で定義）[過去の安定構造に復元]
+// 1. 変数定義（必ず一番上で定義）
 // ==========================================
 const SAAS_MASTER_SS_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
 const TEMPLATE_SS_ID = "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY";
@@ -7,7 +7,51 @@ const PARENT_FOLDER_ID = "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G";
 const SHEET_COMPANIES = "SaaS管理マスターDB";
 
 // ==========================================
-// 2. ユーティリティ
+// 2. システム自己診断 ＆ 権限承認用
+// ==========================================
+function runSelfDiagnostic() {
+  Logger.log("=== システム自己診断を開始します ===");
+  try {
+    const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
+    Logger.log("✓ 親フォルダ接続成功: " + parentFolder.getName());
+
+    const templateFile = DriveApp.getFileById(TEMPLATE_SS_ID);
+    Logger.log("✓ テンプレートファイル接続成功: " + templateFile.getName());
+
+    const masterSs = SpreadsheetApp.openById(SAAS_MASTER_SS_ID);
+    Logger.log("✓ マスターDB接続成功: " + masterSs.getName());
+
+    let sheet = masterSs.getSheetByName(SHEET_COMPANIES);
+    if (!sheet) {
+      setupSaaSBase();
+    }
+    Logger.log("=== すべての自己診断テストをクリアしました。エラーはありません。 ===");
+  } catch (err) {
+    Logger.log("✖ 診断エラー発生: " + err.message);
+  }
+}
+
+// ==========================================
+// 3. 初期化 ＆ 基本設定
+// ==========================================
+function setupSaaSBase() {
+  DriveApp.getRootFolder(); 
+  GmailApp.getInboxUnreadCount(); 
+  const ss = SpreadsheetApp.openById(SAAS_MASTER_SS_ID);
+  let sheet = ss.getSheetByName(SHEET_COMPANIES);
+  if (!sheet) {
+    const defaultSheet = ss.getSheetByName("シート1");
+    if (defaultSheet) defaultSheet.setName(SHEET_COMPANIES);
+    else sheet = ss.insertSheet(SHEET_COMPANIES);
+    sheet = ss.getSheetByName(SHEET_COMPANIES);
+  }
+  const headers = ["企業ID", "企業名", "初期管理者ID", "初期パスワード", "管理者メール", "企業用DB(SS)_ID", "ルートフォルダ_ID", "明細フォルダ_ID", "台帳フォルダ_ID", "出勤簿フォルダ_ID", "名簿フォルダ_ID", "登録日時"];
+  if (sheet.getMaxColumns() < headers.length) sheet.insertColumnsAfter(sheet.getMaxColumns(), headers.length - sheet.getMaxColumns());
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]).setBackground("#4a86e8").setFontColor("white").setFontWeight("bold");
+}
+
+// ==========================================
+// 4. ユーティリティ
 // ==========================================
 function createJsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -35,9 +79,8 @@ function extractTenantInfo(row, map) {
 }
 
 // ==========================================
-// 3. APIルーティング
+// 5. APIルーティング
 // ==========================================
-// ★過去のコード通り、doGet で一覧を返すように復元
 function doGet(e) {
   try {
     const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
@@ -71,7 +114,7 @@ function doPost(e) {
 }
 
 // ==========================================
-// 4. データ操作・登録ロジック
+// 6. データ操作・照会ロジック
 // ==========================================
 function handleDeleteCompany(payload) {
   const compId = String(payload.companyId || "").trim().toUpperCase();
@@ -108,7 +151,7 @@ function handleGetTenantInfo(payload) {
 }
 
 // ==========================================
-// 5. アプリログイン用認証ロジック
+// 7. アプリ連携用ログインロジック
 // ==========================================
 function handleLoginAdmin(payload) {
   const compId = payload.companyId;
@@ -157,7 +200,7 @@ function handleLoginStaff(payload) {
 }
 
 // ==========================================
-// 6. 新規登録ロジック
+// 8. 新規登録ロジック
 // ==========================================
 function generateCompanyId(sheet) {
   const lastRow = sheet.getLastRow();
