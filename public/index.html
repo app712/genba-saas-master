@@ -101,10 +101,17 @@
 
     async function loadTenants() {
       const tbody = document.getElementById('tenantList');
-      addLog(`[GET] 宛先: ${GAS_URL.substring(0, 50)}...`);
+      addLog(`[POST] 宛先: ${GAS_URL.substring(0, 50)}...`); // ログもPOSTに変更
       
       try {
-        const res = await fetch(GAS_URL);
+        // ★ POST通信に書き換え
+        const payload = { action: "getCompanies" };
+        const res = await fetch(GAS_URL, { 
+          method: "POST", 
+          body: JSON.stringify(payload), 
+          headers: { 'Content-Type': 'text/plain' } 
+        });
+        
         addLog(`HTTPステータス: ${res.status} ${res.statusText}`, res.ok ? "success" : "error");
         
         if (!res.ok) {
