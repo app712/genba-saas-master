@@ -1,26 +1,14 @@
 // ==========================================
-// 1. プロパティ設定用関数（初回のみGASエディタから手動実行）
+// 1. 変数定義（必ず一番上で定義）[過去の安定構造に復元]
 // ==========================================
-function setScriptProperties() {
-  PropertiesService.getScriptProperties().setProperties({
-    "MASTER_SS_ID": "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM",
-    "TEMPLATE_SHEET_ID": "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY",
-    "PARENT_FOLDER_ID": "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G",
-    "SHEET_TENANT": "SaaS管理マスターDB"
-  });
-  Logger.log("スクリプトプロパティの保存が完了しました。");
-}
+const SAAS_MASTER_SS_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
+const TEMPLATE_SS_ID = "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY";
+const PARENT_FOLDER_ID = "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G";
+const SHEET_COMPANIES = "SaaS管理マスターDB";
 
-function getEnv() {
-  const p = PropertiesService.getScriptProperties();
-  return {
-    MASTER_SS_ID: p.getProperty("MASTER_SS_ID"),
-    TEMPLATE_SS_ID: p.getProperty("TEMPLATE_SHEET_ID"),
-    PARENT_FOLDER_ID: p.getProperty("PARENT_FOLDER_ID"),
-    SHEET_COMPANIES: p.getProperty("SHEET_TENANT")
-  };
-}
-
+// ==========================================
+// 2. ユーティリティ
+// ==========================================
 function createJsonResponse(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -47,54 +35,47 @@ function extractTenantInfo(row, map) {
 }
 
 // ==========================================
-// 2. APIルーティング (すべてのアクションを統合)
+// 3. APIルーティング
 // ==========================================
+// ★過去のコード通り、doGet で一覧を返すように復元
+function doGet(e) {
+  try {
+    const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
+    const lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return createJsonResponse({ status: "success", companies: [] });
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, 12).getDisplayValues();
+    const companies = data.map(r => ({ companyId: r[0], companyName: r[1], createdAt: r[11] }));
+    return createJsonResponse({ status: "success", companies: companies });
+  } catch (err) { 
+    return createJsonResponse({ status: "error", message: err.message }); 
+  }
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) return createJsonResponse({ status: "error", message: "データが空です" });
     let payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
-    // --- SaaS管理マスター画面からのリクエスト ---
-    if (action === "getCompanies") return handleGetCompanies(); 
     if (action === "registerCompany") return handleRegisterCompany(payload);
     if (action === "deleteCompany") return handleDeleteCompany(payload);
-
-    // --- クライアントアプリからのリクエスト ---
+    if (action === "getTenantInfo") return handleGetTenantInfo(payload); 
     if (action === "login_admin") return handleLoginAdmin(payload);
     if (action === "login_staff") return handleLoginStaff(payload);
-    if (action === "getTenantInfo") return handleGetTenantInfo(payload); // 旧互換
 
-    // 万が一不明なアクションが来た場合は、原因を特定しやすくするために action 名を返す
     return createJsonResponse({ status: "error", message: "不明なアクション: " + action });
   } catch (err) { 
     return createJsonResponse({ status: "error", message: "エラー: " + err.message }); 
   }
 }
 
-function doGet(e) {
-  // ブラウザからの直接アクセス時は一覧を返す
-  return handleGetCompanies();
-}
-
 // ==========================================
-// 3. データ取得・照会・削除ロジック
+// 4. データ操作・登録ロジック
 // ==========================================
-function handleGetCompanies() {
-  const env = getEnv();
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return createJsonResponse({ status: "success", companies: [] });
-  
-  const data = sheet.getRange(2, 1, lastRow - 1, 12).getDisplayValues();
-  const companies = data.map(r => ({ companyId: r[0], companyName: r[1], createdAt: r[11] }));
-  return createJsonResponse({ status: "success", companies: companies });
-}
-
 function handleDeleteCompany(payload) {
-  const env = getEnv();
   const compId = String(payload.companyId || "").trim().toUpperCase();
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return createJsonResponse({ status: "error", message: "テナントが見つかりません" });
 
@@ -112,9 +93,8 @@ function handleDeleteCompany(payload) {
 }
 
 function handleGetTenantInfo(payload) {
-  const env = getEnv();
   const compId = String(payload.companyId || "").trim().toUpperCase();
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return createJsonResponse({ status: "error", message: `企業ID [${compId}] が見つかりません。` });
 
@@ -128,16 +108,15 @@ function handleGetTenantInfo(payload) {
 }
 
 // ==========================================
-// 4. アプリログイン用認証ロジック
+// 5. アプリログイン用認証ロジック
 // ==========================================
 function handleLoginAdmin(payload) {
-  const env = getEnv();
   const compId = payload.companyId;
   const email = payload.email;
   const password = payload.password;
   if (!compId || !email || !password) return createJsonResponse({ status: "error", message: "必須項目を入力してください。" });
 
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const map = getHeaderMap(sheet);
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
@@ -157,16 +136,14 @@ function handleLoginAdmin(payload) {
 }
 
 function handleLoginStaff(payload) {
-  const env = getEnv();
   const compId = payload.companyId;
   if (!compId) return createJsonResponse({ status: "error", message: "企業IDを入力してください。" });
 
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const map = getHeaderMap(sheet);
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
 
   let tenantInfo = null;
-  // SaaSマスター側ではテナントの特定とDB_IDの返却のみ行う（実際の認証はクライアントGASが行うため）
   for (let i = 0; i < data.length; i++) {
     if (String(data[i][map["企業ID"]]).trim().toUpperCase() === String(compId).trim().toUpperCase()) {
       tenantInfo = extractTenantInfo(data[i], map);
@@ -180,7 +157,7 @@ function handleLoginStaff(payload) {
 }
 
 // ==========================================
-// 5. 新規登録ロジック
+// 6. 新規登録ロジック
 // ==========================================
 function generateCompanyId(sheet) {
   const lastRow = sheet.getLastRow();
@@ -195,15 +172,14 @@ function generateCompanyId(sheet) {
 }
 
 function handleRegisterCompany(payload) {
-  const env = getEnv();
-  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const companyId = generateCompanyId(sheet);
   const adminEmail = String(payload.adminEmail || "").trim();
   const adminPass = String(payload.adminPass || "").trim();
   const fullAdminId = adminEmail;
 
   const rootFolderName = `[${companyId}] ${payload.companyName}`;
-  const parentFolder = DriveApp.getFolderById(env.PARENT_FOLDER_ID);
+  const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
   const companyFolder = parentFolder.createFolder(rootFolderName);
   
   const folderMeisai = companyFolder.createFolder("01_給与明細");
@@ -211,7 +187,7 @@ function handleRegisterCompany(payload) {
   const folderTime   = companyFolder.createFolder("03_出勤簿");
   const folderMember = companyFolder.createFolder("04_労働者名簿");
   
-  const newDbFile = DriveApp.getFileById(env.TEMPLATE_SS_ID).makeCopy(`${payload.companyName}_業務統合データベース`, companyFolder);
+  const newDbFile = DriveApp.getFileById(TEMPLATE_SS_ID).makeCopy(`${payload.companyName}_業務統合データベース`, companyFolder);
   const newDbId = newDbFile.getId();
   const newDb = SpreadsheetApp.openById(newDbId);
   

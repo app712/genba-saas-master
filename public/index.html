@@ -15,7 +15,6 @@
 
   <div class="container">
     <div class="row g-4">
-      <!-- 登録フォーム -->
       <div class="col-md-4">
         <div class="card shadow-sm border-0">
           <div class="card-header bg-primary text-white fw-bold">新規テナント登録</div>
@@ -38,7 +37,6 @@
         </div>
       </div>
 
-      <!-- 企業一覧 -->
       <div class="col-md-8">
         <div class="card shadow-sm border-0">
           <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center">
@@ -67,22 +65,17 @@
 
   <script>
     // ==========================================
-    // SaaSマスターのGAS URLを設定済み
+    // 最新のGAS URL
     // ==========================================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyg97hvDzBZTt5W1S9xBRGz--pcrlZLHPdzRfM6H8X_tIKbK-w4ozNeIoqbhQlrCC6d/exec";
 
-    // 画面読み込み時にテナント一覧を取得
     window.onload = () => loadTenants();
 
+    // ★ 以前成功していた GET通信の方式に完全復元
     async function loadTenants() {
       const tbody = document.getElementById('tenantList');
       try {
-        const payload = { action: "getCompanies" };
-        const res = await fetch(GAS_URL, { 
-          method: "POST", 
-          body: JSON.stringify(payload), 
-          headers: { 'Content-Type': 'text/plain' } 
-        });
+        const res = await fetch(GAS_URL); // GET通信
         const json = await res.json();
         
         if (json.status === "success") {
@@ -133,7 +126,7 @@
           document.getElementById('compName').value = "";
           document.getElementById('adminEmail').value = "";
           document.getElementById('adminPass').value = "";
-          loadTenants(); // 一覧を再取得
+          loadTenants();
         } else {
           resDiv.innerText = "エラー: " + json.message;
           resDiv.className = "mt-3 text-danger";
@@ -154,7 +147,7 @@
         
         if (json.status === "success") {
           alert(json.message);
-          loadTenants(); // 一覧を再取得
+          loadTenants();
         } else {
           alert("エラー: " + json.message);
         }
