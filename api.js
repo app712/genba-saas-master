@@ -97,6 +97,9 @@ function doPost(e) {
     if (action === "getTenantInfo") return handleGetTenantInfo(payload); 
     if (action === "login_admin") return handleLoginAdmin(payload);
     if (action === "login_staff") return handleLoginStaff(payload);
+    
+    // ★追加: ダッシュボード用データ取得ルート
+    if (action === "getDashboardData") return handleGetDashboardData(payload);
 
     return createJsonResponse({ status: "error", message: "不明なアクション: " + action });
   } catch (err) { 
@@ -141,6 +144,39 @@ function handleGetTenantInfo(payload) {
     return createJsonResponse({ status: "error", message: `企業ID [${compId}] が見つかりません。` });
   } catch (err) {
     return createJsonResponse({ status: "error", message: "テナント情報取得エラー: " + err.message });
+  }
+}
+
+// ★追加: テナント専用DBからデータを読み取る処理
+function handleGetDashboardData(payload) {
+  const dbId = payload.dbId;
+  if (!dbId) return createJsonResponse({ status: "error", message: "DBのIDが指定されていません" });
+
+  try {
+    const db = SpreadsheetApp.openById(dbId);
+    
+    // 社員マスタのデータ行数をカウント
+    const empSheet = db.getSheetByName("社員マスタ");
+    let empCount = 0;
+    if (empSheet) {
+      const lastRow = empSheet.getLastRow();
+      empCount = lastRow > 1 ? lastRow - 1 : 0; // ヘッダー行をマイナス
+    }
+
+    // 現場マスタのデータ行数をカウント
+    const siteSheet = db.getSheetByName("現場マスタ");
+    let siteCount = 0;
+    if (siteSheet) {
+      const lastRow = siteSheet.getLastRow();
+      siteCount = lastRow > 1 ? lastRow - 1 : 0; // ヘッダー行をマイナス
+    }
+
+    return createJsonResponse({ 
+      status: "success", 
+      data: { empCount: empCount, siteCount: siteCount }
+    });
+  } catch (err) {
+    return createJsonResponse({ status: "error", message: "テナントDBアクセスエラー: " + err.message });
   }
 }
 
