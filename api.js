@@ -1,7 +1,7 @@
 // ==========================================
 // 1. 変数定義（必ず一番上で定義）
 // ==========================================
-const SAAS_MASTER_SS_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
+const SAAS_MASTER_SS_ID = "1trxC9oVhyCbwH8p6bD1UuBq7LWlKTpOrTmAq3UVAaoU";
 const TEMPLATE_SS_ID = "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY";
 const PARENT_FOLDER_ID = "1Is1y-S5vWWjtkjha8KTXOPL3yxSLMJ_G";
 const SHEET_COMPANIES = "SaaS管理マスターDB";
