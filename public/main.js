@@ -1,7 +1,7 @@
 // ==========================================
-// SaaSマスターのGAS URLを設定してください
+// SaaSマスターのGAS URLを設定
 // ==========================================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzZAaLZChAku2SsLvw1ardx7b2rfttkapgm-WgoISwztQDnfvV1f8iVMbnlQ53ozb_d/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwKdfysmUkuu3duWOlx2euxsM7mzzsIo6vSfbYHCoK1M_VPXS3FOorv8AEIMRLQWFdY/exec";
 
 // 画面読み込み時にテナント一覧を取得
 window.onload = () => loadTenants();
