@@ -1,5 +1,5 @@
 // ==========================================
-// POSTリクエスト（登録および二重ログイン認証API）
+// POSTリクエスト（登録、認証、テストデータ投入）
 // ==========================================
 function doPost(e) {
   try {
@@ -9,11 +9,47 @@ function doPost(e) {
     const payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
-    // 新規企業登録（自動附番・環境構築）
+    // 1. 新規企業登録
     if (action === "register") {
       return createNewTenant(payload.companyName, payload.email, payload.password);
     }
 
+    // 2. 実験用テストデータの自動投入（追加機能）
+    if (action === "inject_test_data") {
+      const dbId = payload.dbId;
+      if (!dbId) return createJsonResponse({ status: "error", message: "データベースIDが指定されていません。" });
+
+      try {
+        const clientSs = SpreadsheetApp.openById(dbId);
+        let sheet = clientSs.getSheetByName("社員マスタ");
+        
+        // シートがなければ作成、あればクリア
+        if (!sheet) {
+          sheet = clientSs.insertSheet("社員マスタ");
+        } else {
+          sheet.clear();
+        }
+
+        // テストデータ配列
+        const testData = [
+          ["社員ID", "パスワード", "氏名", "権限"],
+          ["EMP-001", "1234", "テスト 太郎", "staff"],
+          ["EMP-002", "1234", "テスト 次郎", "staff"],
+          ["ADMIN-01", "admin123", "現場 管理者", "admin"]
+        ];
+
+        sheet.getRange(1, 1, testData.length, testData[0].length).setValues(testData);
+
+        return createJsonResponse({ 
+          status: "success", 
+          message: "テストデータ投入完了。\n社員ID: EMP-001 / PASS: 1234 で社員ログインが可能です。" 
+        });
+      } catch (err) {
+        return createJsonResponse({ status: "error", message: "投入エラー: " + err.message });
+      }
+    }
+
+    // --- 以下、マスターDBを使用する処理 ---
     const props = PropertiesService.getScriptProperties();
     const masterSsId = props.getProperty("MASTER_SS_ID");
     const sheetTenant = props.getProperty("SHEET_TENANT");
@@ -24,9 +60,7 @@ function doPost(e) {
     const tMap = getHeaderMap(tenantSheet);
     const tData = tenantSheet.getRange(2, 1, tenantSheet.getLastRow() - 1, tenantSheet.getLastColumn()).getValues();
 
-    // ==========================================
-    // ① 管理者ログイン（メールアドレス認証）
-    // ==========================================
+    // 3. 管理者ログイン
     if (action === "login_admin") {
       const email = payload.email;
       const password = payload.password;
@@ -38,7 +72,7 @@ function doPost(e) {
             String(tData[i][tMap["初期パスワード"]]).trim() === String(password).trim()) {
           tenantInfo = extractTenantInfo(tData[i], tMap);
           tenantInfo.role = "admin";
-          tenantInfo.userName = "管理者";
+          tenantInfo.userName = "テナント管理者";
           break;
         }
       }
@@ -46,9 +80,7 @@ function doPost(e) {
       return createJsonResponse({ status: "error", message: "メールアドレスまたはパスワードが間違っています。" });
     }
 
-    // ==========================================
-    // ② 一般社員ログイン（企業ID＋任意ID認証）
-    // ==========================================
+    // 4. 一般社員ログイン
     if (action === "login_staff") {
       const compId = payload.companyId;
       const userId = payload.userId;
@@ -104,7 +136,6 @@ function doPost(e) {
   }
 }
 
-// 企業情報の抽出ユーティリティ
 function extractTenantInfo(row, map) {
   return {
     companyId: String(row[map["企業ID"]]).trim(),
