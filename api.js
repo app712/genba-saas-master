@@ -11,9 +11,6 @@ function setScriptProperties() {
   Logger.log("スクリプトプロパティの保存が完了しました。");
 }
 
-// ==========================================
-// プロパティ取得ユーティリティ
-// ==========================================
 function getEnv() {
   const p = PropertiesService.getScriptProperties();
   return {
@@ -49,9 +46,6 @@ function runSelfDiagnostic() {
   }
 }
 
-// ==========================================
-// 3. 初期化 ＆ 基本設定
-// ==========================================
 function setupSaaSBase() {
   const env = getEnv();
   DriveApp.getRootFolder(); 
@@ -70,9 +64,10 @@ function setupSaaSBase() {
 }
 
 // ==========================================
-// 4. APIルーティング
+// 3. APIルーティング
 // ==========================================
 function doGet(e) {
+  // ブラウザからの直接アクセス時のみ稼働
   try {
     const env = getEnv();
     const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
@@ -90,6 +85,7 @@ function doPost(e) {
     let payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
+    if (action === "getCompanies") return handleGetCompanies(); // ★追加: 一覧取得をPOSTで処理
     if (action === "registerCompany") return handleRegisterCompany(payload);
     if (action === "getTenantInfo") return handleGetTenantInfo(payload);
     if (action === "deleteCompany") return handleDeleteCompany(payload);
@@ -103,8 +99,20 @@ function createJsonResponse(obj) {
 }
 
 // ==========================================
-// 5. 削除・照会ロジック
+// 4. データ取得・照会・削除ロジック
 // ==========================================
+// ★追加: アプリからのテナント一覧取得ロジック
+function handleGetCompanies() {
+  const env = getEnv();
+  const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return createJsonResponse({ status: "success", companies: [] });
+  
+  const data = sheet.getRange(2, 1, lastRow - 1, 12).getDisplayValues();
+  const companies = data.map(r => ({ companyId: r[0], companyName: r[1], createdAt: r[11] }));
+  return createJsonResponse({ status: "success", companies: companies });
+}
+
 function handleDeleteCompany(payload) {
   const env = getEnv();
   const compId = String(payload.companyId || "").trim().toUpperCase();
@@ -142,7 +150,7 @@ function handleGetTenantInfo(payload) {
 }
 
 // ==========================================
-// 6. 登録ロジック
+// 5. 新規登録ロジック
 // ==========================================
 function generateCompanyId(sheet) {
   const lastRow = sheet.getLastRow();

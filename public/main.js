@@ -6,11 +6,16 @@ const GAS_URL = "https://script.google.com/macros/s/AKfycbwKdfysmUkuu3duWOlx2eux
 // 画面読み込み時にテナント一覧を取得
 window.onload = () => loadTenants();
 
-// テナント一覧取得
+// ★修正: 一覧取得通信をGETからPOSTへ変更し、CORSエラーを回避
 async function loadTenants() {
   const tbody = document.getElementById('tenantList');
   try {
-    const res = await fetch(GAS_URL);
+    const payload = { action: "getCompanies" };
+    const res = await fetch(GAS_URL, { 
+      method: "POST", 
+      body: JSON.stringify(payload), 
+      headers: { 'Content-Type': 'text/plain' } 
+    });
     const json = await res.json();
     
     if (json.status === "success") {
@@ -31,9 +36,11 @@ async function loadTenants() {
           </tr>
         `;
       });
+    } else {
+      tbody.innerHTML = `<tr><td colspan='4' class='text-center py-3 text-danger'>エラー: ${json.message}</td></tr>`;
     }
   } catch (e) {
-    tbody.innerHTML = "<tr><td colspan='4' class='text-center py-3 text-danger'>データ取得エラー</td></tr>";
+    tbody.innerHTML = "<tr><td colspan='4' class='text-center py-3 text-danger'>データ取得エラー: 通信に失敗しました。</td></tr>";
   }
 }
 
