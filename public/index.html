@@ -2,75 +2,327 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>SaaSマスター | 新規企業登録</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>現場のミカタ | クラウド現場・勤怠管理システム</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
+  <style>
+    :root { var(--primary-color: #0d6efd; }
+    body { background-color: #f4f6f9; font-family: 'Helvetica Neue', Arial, sans-serif; }
+    .d-none { display: none !important; }
+    .card-hover:hover { transform: translateY(-3px); transition: all 0.2s ease-in-out; box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important; }
+    .btn-stamp { height: 120px; font-size: 1.25rem; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  </style>
 </head>
-<body class="bg-light p-4">
-  <div class="container card p-4 shadow-sm" style="max-width: 600px; margin: 0 auto;">
-    <h2 class="mb-4">新規企業登録・環境構築</h2>
-    <p class="text-muted small">企業ID、専用フォルダ一式（明細・台帳など）、データベースはすべて自動生成されます。</p>
-    
-    <div class="mb-3">
-      <label>企業名（必須）</label>
-      <input type="text" id="compName" class="form-control" placeholder="例: 株式会社〇〇">
+<body>
+
+  <!-- 1. アプリログイン画面 -->
+  <div id="loginSection" class="container d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+    <div class="card p-4 shadow border-0" style="width: 100%; max-width: 480px; border-radius: 16px;">
+      <div class="text-center mb-4">
+        <h2 class="text-primary fw-bold"><i class="bi bi-shield-lock-fill"></i> 現場のミカタ</h2>
+        <p class="text-muted small">勤怠・給与・現場管理クラウド</p>
+      </div>
+      <ul class="nav nav-tabs nav-fill mb-4" id="loginTab" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#staff-pane" type="button"><i class="bi bi-person-fill"></i> 従業員</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#admin-pane" type="button"><i class="bi bi-person-gear"></i> 管理者</button></li>
+      </ul>
+      <div class="tab-content">
+        <!-- 従業員ログイン -->
+        <div class="tab-pane fade show active" id="staff-pane">
+          <div class="mb-3"><input type="text" id="staffCompId" class="form-control" placeholder="顧客ID (例: CP-001)"></div>
+          <div class="mb-3"><input type="text" id="staffUserId" class="form-control" placeholder="個人ID (例: taro)"></div>
+          <div class="mb-3"><input type="password" id="staffPass" class="form-control" placeholder="パスワード"></div>
+          <button onclick="executeLogin('staff')" class="btn btn-primary w-100 py-2 fw-bold"><i class="bi bi-box-arrow-in-right"></i> ログイン</button>
+        </div>
+        <!-- 管理者ログイン -->
+        <div class="tab-pane fade" id="admin-pane">
+          <div class="mb-3"><input type="text" id="adminCompId" class="form-control" placeholder="顧客ID (例: CP-001)"></div>
+          <div class="mb-3"><input type="email" id="adminEmail" class="form-control" placeholder="メールアドレス"></div>
+          <div class="mb-3"><input type="password" id="adminPass" class="form-control" placeholder="パスワード"></div>
+          <button onclick="executeLogin('admin')" class="btn btn-dark w-100 py-2 fw-bold"><i class="bi bi-shield-check"></i> 管理者としてログイン</button>
+        </div>
+      </div>
+      <div id="loginResult" class="mt-3 text-center fw-bold"></div>
     </div>
-    <div class="mb-3">
-      <label>管理者メールアドレス（必須）</label>
-      <input type="email" id="email" class="form-control" placeholder="例: admin@example.com">
-    </div>
-    <div class="mb-3">
-      <label>初期パスワード（必須）</label>
-      <input type="password" id="password" class="form-control" placeholder="半角英数字">
-    </div>
-    
-    <button onclick="register()" class="btn btn-primary w-100">登録・環境構築開始</button>
-    <div id="result" class="mt-3 text-center fw-bold"></div>
   </div>
+
+  <!-- 2. メイン画面 -->
+  <div id="mainSection" class="d-none">
+    <nav class="navbar navbar-dark bg-primary shadow-sm sticky-top">
+      <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#"><i class="bi bi-tools"></i> 現場のミカタ <span class="badge bg-light text-primary ms-2" id="tenantBadge">企業名</span></a>
+        <div class="d-flex align-items-center text-white">
+          <span class="me-3"><i class="bi bi-person-circle"></i> <span id="userNameDisplay">ユーザー名</span> (<span id="roleBadge">権限</span>)</span>
+          <button class="btn btn-outline-light btn-sm fw-bold" onclick="logout()">ログアウト</button>
+        </div>
+      </div>
+    </nav>
+    <div class="container py-4">
+      
+      <!-- ダッシュボード -->
+      <div id="staffDashboard" class="staff-only">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white fw-bold"><i class="bi bi-calendar3"></i> 現場稼働カレンダー</div>
+          <div class="card-body">
+            <div id="calendar" style="height: 400px;"></div>
+          </div>
+        </div>
+
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+              <div class="card-header bg-white fw-bold"><i class="bi bi-clock-history"></i> GPS連携打刻</div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <select id="siteSelect" class="form-select border-primary fw-bold"><option value="">現場を選択してください</option></select>
+                </div>
+                <div class="row g-2">
+                  <div class="col-6"><button onclick="handleAttendance('出勤')" class="btn btn-success w-100 btn-stamp card-hover"><i class="bi bi-sun-fill fs-1"></i>出勤</button></div>
+                  <div class="col-6"><button onclick="handleAttendance('退勤')" class="btn btn-danger w-100 btn-stamp card-hover"><i class="bi bi-moon-stars-fill fs-1"></i>退勤</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card shadow-sm border-0 h-100">
+              <div class="card-header bg-white fw-bold"><i class="bi bi-journal-text"></i> 現場メモ・業務日報</div>
+              <div class="card-body">
+                <div class="mb-3">
+                  <select id="reportSiteSelect" class="form-select"><option value="">現場を選択</option></select>
+                </div>
+                <div class="row mb-3">
+                  <div class="col-6"><input type="number" id="reqPersonnel" class="form-control" placeholder="翌日必要人員(名)"></div>
+                  <div class="col-6"><input type="text" id="reqEquip" class="form-control" placeholder="必要道具(任意)"></div>
+                </div>
+                <div class="mb-3"><textarea id="reportText" class="form-control" rows="3" placeholder="報告内容"></textarea></div>
+                <button onclick="submitReport()" class="btn btn-primary w-100 fw-bold"><i class="bi bi-send-fill"></i> スプレッドシートへ送信</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="adminDashboard" class="admin-only d-none">
+        <h4 class="fw-bold mb-3"><i class="bi bi-sliders"></i> 管理者ポータル</h4>
+        <div class="row g-3 mb-4">
+          <div class="col-md-3"><div class="card shadow-sm p-3 card-hover text-center"><i class="bi bi-file-earmark-pdf-fill fs-1 text-danger"></i><h5 class="fw-bold mt-2">帳票全自動出力</h5><button onclick="alert('PDF生成機能を利用します')" class="btn btn-outline-danger w-100">PDF生成</button></div></div>
+          <div class="col-md-3"><div class="card shadow-sm p-3 card-hover text-center"><i class="bi bi-calculator-fill fs-1 text-success"></i><h5 class="fw-bold mt-2">給与・月次締め</h5><button onclick="alert('給与計算処理を利用します')" class="btn btn-outline-success w-100">再計算実行</button></div></div>
+          <div class="col-md-3"><div class="card shadow-sm p-3 card-hover text-center"><i class="bi bi-people-fill fs-1 text-primary"></i><h5 class="fw-bold mt-2">社員・現場マスタ</h5><button onclick="openMasterModal()" class="btn btn-outline-primary w-100">マスタ編集</button></div></div>
+          <div class="col-md-3"><div class="card shadow-sm p-3 card-hover text-center"><i class="bi bi-google-drive fs-1 text-warning"></i><h5 class="fw-bold mt-2">専用ドライブ</h5><button onclick="openDriveFolder()" class="btn btn-outline-warning w-100">開く</button></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="masterModal" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header bg-primary text-white"><h5 class="modal-title fw-bold">マスタ設定</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+        <div class="modal-body">
+          <div class="d-grid gap-3">
+            <button onclick="openMasterSpreadsheet()" class="btn btn-outline-primary fw-bold py-2">スプレッドシートを開く</button>
+            <button onclick="injectTestData()" class="btn btn-warning fw-bold py-2">実験用データを自動投入</button>
+          </div>
+          <div id="masterModalResult" class="mt-3 text-center fw-bold"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
     // ==========================================
-    // 設定変数（必ず一番上で定義）
+    // 設定変数
     // ==========================================
-    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxxtgGOQKRhb6ZbvMN0MM6INRLXxaoERuC59PiJ9i2sxLSBceU1SLuX_HJIY2GcAfRG/exec";
+    const SAAS_MASTER_API_URL = "https://script.google.com/macros/s/AKfycbxxtgGOQKRhb6ZbvMN0MM6INRLXxaoERuC59PiJ9i2sxLSBceU1SLuX_HJIY2GcAfRG/exec";
+    
+    // ★【重要】クライアントGASのURLを貼り付けてください
+    const CLIENT_GAS_API_URL = "https://script.google.com/macros/s/AKfycbwqa0tZVIEkiPCBHjbxsfzXP20BgM396MXSTGvuf46vAsHzKT8woWcXr9gS_4R3Ljr1hA/exec";
 
-    async function register() {
-      const compName = document.getElementById('compName').value;
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const resultDiv = document.getElementById('result');
+    window.onload = () => {
+      const savedCompId = localStorage.getItem("companyId");
+      if (savedCompId) {
+        document.getElementById("staffCompId").value = savedCompId;
+        document.getElementById("adminCompId").value = savedCompId;
+      }
+    };
 
-      if (!compName || !email || !password) {
-        alert("すべての項目を入力してください。");
-        return;
+    // ログイン統合フロー
+    async function executeLogin(type) {
+      const resultMsg = document.getElementById('loginResult');
+      let masterPayload = {};
+      let clientLoginId = "";
+      let clientPass = "";
+
+      if (type === 'admin') {
+        const compId = document.getElementById('adminCompId').value;
+        const email = document.getElementById('adminEmail').value;
+        const pass = document.getElementById('adminPass').value;
+        if (!compId || !email || !pass) return alert("入力が不足しています。");
+        masterPayload = { action: 'login_admin', companyId: compId, email: email, password: pass };
+        clientLoginId = email;
+        clientPass = pass;
+      } else {
+        const compId = document.getElementById('staffCompId').value;
+        const userId = document.getElementById('staffUserId').value;
+        const pass = document.getElementById('staffPass').value;
+        if (!compId || !userId || !pass) return alert("入力が不足しています。");
+        masterPayload = { action: 'login_staff', companyId: compId, userId: userId, password: pass };
+        clientLoginId = userId;
+        clientPass = pass;
       }
 
-      resultDiv.innerText = "環境構築中です。フォルダ群の作成とスプレッドシートのコピーを行っているため約20秒かかります...";
-      resultDiv.className = "mt-3 text-center fw-bold text-secondary";
+      resultMsg.innerText = "SaaSマスターへ接続中...";
+      resultMsg.className = "text-secondary mt-3 fw-bold";
 
       try {
-        const data = { action: 'register', companyName: compName, email: email, password: password };
-        const res = await fetch(GAS_WEB_APP_URL, { 
-          method: 'POST', 
-          body: JSON.stringify(data),
-          headers: { 'Content-Type': 'text/plain' }
+        // 1. SaaSマスター認証
+        const resMaster = await fetch(SAAS_MASTER_API_URL, { 
+          method: 'POST', body: JSON.stringify(masterPayload), headers: { 'Content-Type': 'text/plain' }
         });
-        
-        const json = await res.json();
-        if (json.status === "success") {
-          resultDiv.innerText = json.message;
-          resultDiv.className = "mt-3 text-center fw-bold text-success";
-          document.getElementById('compName').value = "";
-          document.getElementById('email').value = "";
-          document.getElementById('password').value = "";
-        } else {
-          resultDiv.innerText = "エラー: " + json.message;
-          resultDiv.className = "mt-3 text-center fw-bold text-danger";
+        const jsonMaster = await resMaster.json();
+
+        if (jsonMaster.status !== "success") {
+          resultMsg.innerText = "エラー: " + jsonMaster.message;
+          resultMsg.className = "text-danger mt-3 fw-bold";
+          return;
         }
+
+        const dataMaster = jsonMaster.data;
+        ["companyId", "companyName", "dbId", "rootFolderId"].forEach(key => localStorage.setItem(key, dataMaster[key]));
+
+        resultMsg.innerText = "データベースを読み込み中...";
+
+        // 2. クライアントGAS認証と初期化
+        const clientPayload = {
+          action: 'loginAndInit',
+          dbId: dataMaster.dbId,
+          loginId: clientLoginId,
+          password: clientPass,
+          isAdmin: type === 'admin'
+        };
+
+        const resClient = await fetch(CLIENT_GAS_API_URL, { 
+          method: 'POST', body: JSON.stringify(clientPayload), headers: { 'Content-Type': 'text/plain' }
+        });
+        const jsonClient = await resClient.json();
+
+        if (jsonClient.status !== "success") {
+          resultMsg.innerText = "エラー: " + jsonClient.message;
+          resultMsg.className = "text-danger mt-3 fw-bold";
+          return;
+        }
+
+        // 初期化成功
+        localStorage.setItem("empId", jsonClient.user.empId);
+        localStorage.setItem("userName", jsonClient.user.name);
+        localStorage.setItem("role", jsonClient.user.role);
+
+        // セレクトボックス構築
+        const siteSelect = document.getElementById('siteSelect');
+        const reportSiteSelect = document.getElementById('reportSiteSelect');
+        siteSelect.innerHTML = '<option value="">現場を選択してください</option>';
+        reportSiteSelect.innerHTML = '<option value="">現場を選択</option>';
+        jsonClient.sites.forEach(s => {
+          siteSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+          reportSiteSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        });
+
+        showMainScreen(jsonClient.user);
       } catch (e) {
-        resultDiv.innerText = "通信エラーが発生しました。";
-        resultDiv.className = "mt-3 text-center fw-bold text-danger";
+        resultMsg.innerText = "通信エラーが発生しました。";
+        resultMsg.className = "text-danger mt-3 fw-bold";
       }
     }
+
+    function showMainScreen(user) {
+      document.getElementById("loginSection").classList.add("d-none");
+      document.getElementById("mainSection").classList.remove("d-none");
+      document.getElementById("tenantBadge").innerText = localStorage.getItem("companyName");
+      document.getElementById("userNameDisplay").innerText = user.name;
+      
+      const isAdmin = (user.role === "admin" || user.role === "管理者");
+      document.getElementById("roleBadge").innerText = isAdmin ? "管理者" : "従業員";
+
+      if (isAdmin) {
+        document.querySelectorAll('.staff-only').forEach(el => el.classList.add("d-none"));
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.remove("d-none"));
+      } else {
+        document.querySelectorAll('.staff-only').forEach(el => el.classList.remove("d-none"));
+        document.querySelectorAll('.admin-only').forEach(el => el.classList.add("d-none"));
+        fetchCalendar();
+      }
+    }
+
+    async function fetchCalendar() {
+      try {
+        const payload = { action: 'getCalendarData', dbId: localStorage.getItem("dbId") };
+        const res = await fetch(CLIENT_GAS_API_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+        const json = await res.json();
+        if (json.status === "success") {
+          const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+            initialView: 'dayGridMonth', locale: 'ja', height: '100%', events: json.data
+          });
+          calendar.render();
+        }
+      } catch (e) {}
+    }
+
+    async function handleAttendance(type) {
+      const siteId = document.getElementById('siteSelect').value;
+      if (!siteId) return alert("打刻する現場を選択してください。");
+      const sendStamp = async (loc) => {
+        try {
+          const payload = { action: 'recordTimecard', dbId: localStorage.getItem("dbId"), empId: localStorage.getItem("empId"), empName: localStorage.getItem("userName"), siteId: siteId, type: type, location: loc };
+          const res = await fetch(CLIENT_GAS_API_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+          const json = await res.json();
+          alert(json.status === 'success' ? json.message : "エラー: " + json.message);
+        } catch(e) { alert("通信エラー"); }
+      };
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => sendStamp(`${pos.coords.latitude}, ${pos.coords.longitude}`), () => sendStamp("GPS取得不可"));
+      else sendStamp("GPS非対応");
+    }
+
+    async function submitReport() {
+      const genba = document.getElementById('reportSiteSelect').value;
+      const text = document.getElementById('reportText').value;
+      const reqPers = document.getElementById('reqPersonnel').value;
+      const reqEq = document.getElementById('reqEquip').value;
+      if (!genba || !text) return alert("現場名と報告内容を入力してください。");
+      try {
+        const payload = { action: 'submitMemo', dbId: localStorage.getItem("dbId"), empId: localStorage.getItem("empId"), empName: localStorage.getItem("userName"), siteId: genba, requiredPersonnel: reqPers, equipment: reqEq, memoText: text };
+        const res = await fetch(CLIENT_GAS_API_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+        const json = await res.json();
+        if (json.status === "success") {
+          alert("日報をスプレッドシートに転記しました！");
+          document.getElementById('reportText').value = "";
+          document.getElementById('reqPersonnel').value = "";
+          document.getElementById('reqEquip').value = "";
+        }
+      } catch(e) { alert("通信エラー"); }
+    }
+
+    function openMasterModal() { new bootstrap.Modal(document.getElementById('masterModal')).show(); }
+    function openDriveFolder() { window.open(`https://drive.google.com/drive/folders/${localStorage.getItem("rootFolderId")}`, '_blank'); }
+    function openMasterSpreadsheet() { window.open(`https://docs.google.com/spreadsheets/d/${localStorage.getItem("dbId")}/edit`, '_blank'); }
+    
+    async function injectTestData() {
+      const resultMsg = document.getElementById('masterModalResult');
+      resultMsg.innerText = "データベースにテストデータを投入中...";
+      resultMsg.className = "text-secondary mt-3 fw-bold";
+      try {
+        const payload = { action: 'inject_test_data', dbId: localStorage.getItem("dbId") };
+        const res = await fetch(CLIENT_GAS_API_URL, { method: 'POST', body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+        const json = await res.json();
+        resultMsg.innerText = json.status === "success" ? json.message : "エラー: " + json.message;
+        resultMsg.className = json.status === "success" ? "text-success mt-3 fw-bold" : "text-danger mt-3 fw-bold";
+      } catch (e) { resultMsg.innerText = "通信エラー"; }
+    }
+
+    function logout() { localStorage.clear(); location.reload(); }
   </script>
 </body>
 </html>

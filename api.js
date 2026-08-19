@@ -9,47 +9,31 @@ function doPost(e) {
     const payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
-    // 1. 新規企業登録
-    if (action === "register") {
-      return createNewTenant(payload.companyName, payload.email, payload.password);
-    }
+    if (action === "register") return createNewTenant(payload.companyName, payload.email, payload.password);
 
-    // 2. 実験用テストデータの自動投入（追加機能）
     if (action === "inject_test_data") {
       const dbId = payload.dbId;
       if (!dbId) return createJsonResponse({ status: "error", message: "データベースIDが指定されていません。" });
-
       try {
         const clientSs = SpreadsheetApp.openById(dbId);
-        let sheet = clientSs.getSheetByName("社員マスタ");
-        
-        // シートがなければ作成、あればクリア
-        if (!sheet) {
-          sheet = clientSs.insertSheet("社員マスタ");
-        } else {
-          sheet.clear();
-        }
-
-        // テストデータ配列
-        const testData = [
+        let staffSheet = clientSs.getSheetByName("社員マスタ") || clientSs.insertSheet("社員マスタ");
+        staffSheet.clear();
+        staffSheet.getRange(1, 1, 4, 4).setValues([
           ["社員ID", "パスワード", "氏名", "権限"],
           ["EMP-001", "1234", "テスト 太郎", "staff"],
           ["EMP-002", "1234", "テスト 次郎", "staff"],
           ["ADMIN-01", "admin123", "現場 管理者", "admin"]
-        ];
-
-        sheet.getRange(1, 1, testData.length, testData[0].length).setValues(testData);
-
-        return createJsonResponse({ 
-          status: "success", 
-          message: "テストデータ投入完了。\n社員ID: EMP-001 / PASS: 1234 で社員ログインが可能です。" 
-        });
+        ]);
+        let timeSheet = clientSs.getSheetByName("出退勤記録") || clientSs.insertSheet("出退勤記録");
+        if(timeSheet.getLastRow() === 0) timeSheet.appendRow(["日時", "氏名", "打刻種類", "位置情報"]);
+        let reportSheet = clientSs.getSheetByName("業務日報") || clientSs.insertSheet("業務日報");
+        if(reportSheet.getLastRow() === 0) reportSheet.appendRow(["送信日時", "氏名", "現場名", "報告内容"]);
+        return createJsonResponse({ status: "success", message: "テストデータの投入完了。社員ID: EMP-001 / PASS: 1234 でログイン可能です。" });
       } catch (err) {
         return createJsonResponse({ status: "error", message: "投入エラー: " + err.message });
       }
     }
 
-    // --- 以下、マスターDBを使用する処理 ---
     const props = PropertiesService.getScriptProperties();
     const masterSsId = props.getProperty("MASTER_SS_ID");
     const sheetTenant = props.getProperty("SHEET_TENANT");
@@ -60,15 +44,17 @@ function doPost(e) {
     const tMap = getHeaderMap(tenantSheet);
     const tData = tenantSheet.getRange(2, 1, tenantSheet.getLastRow() - 1, tenantSheet.getLastColumn()).getValues();
 
-    // 3. 管理者ログイン
+    // 管理者ログイン（企業ID + メールアドレス + パスワード）
     if (action === "login_admin") {
+      const compId = payload.companyId;
       const email = payload.email;
       const password = payload.password;
-      if (!email || !password) return createJsonResponse({ status: "error", message: "必須項目を入力してください。" });
+      if (!compId || !email || !password) return createJsonResponse({ status: "error", message: "必須項目を入力してください。" });
 
       let tenantInfo = null;
       for (let i = 0; i < tData.length; i++) {
-        if (String(tData[i][tMap["管理者メール"]]).trim() === String(email).trim() && 
+        if (String(tData[i][tMap["企業ID"]]).trim().toUpperCase() === String(compId).trim().toUpperCase() &&
+            String(tData[i][tMap["管理者メール"]]).trim() === String(email).trim() && 
             String(tData[i][tMap["初期パスワード"]]).trim() === String(password).trim()) {
           tenantInfo = extractTenantInfo(tData[i], tMap);
           tenantInfo.role = "admin";
@@ -77,10 +63,10 @@ function doPost(e) {
         }
       }
       if (tenantInfo) return createJsonResponse({ status: "success", data: tenantInfo });
-      return createJsonResponse({ status: "error", message: "メールアドレスまたはパスワードが間違っています。" });
+      return createJsonResponse({ status: "error", message: "企業ID、メールアドレス、またはパスワードが間違っています。" });
     }
 
-    // 4. 一般社員ログイン
+    // 一般社員ログイン（企業ID + 個人ID + パスワード）
     if (action === "login_staff") {
       const compId = payload.companyId;
       const userId = payload.userId;
@@ -99,15 +85,9 @@ function doPost(e) {
       try {
         const clientSs = SpreadsheetApp.openById(tenantInfo.dbId);
         const staffSheet = clientSs.getSheetByName("社員マスタ");
-        if (!staffSheet) return createJsonResponse({ status: "error", message: "社員マスタが存在しません。管理者に連絡してください。" });
-
         const sMap = getHeaderMap(staffSheet);
         const sData = staffSheet.getRange(2, 1, staffSheet.getLastRow() - 1, staffSheet.getLastColumn()).getValues();
-        
-        let isValidUser = false;
-        let userName = "";
-        let userRole = "staff";
-
+        let isValidUser = false, userName = "", userRole = "staff";
         for (let j = 0; j < sData.length; j++) {
           if (String(sData[j][sMap["社員ID"]]).trim() === String(userId).trim() &&
               String(sData[j][sMap["パスワード"]]).trim() === String(password).trim()) {
@@ -117,7 +97,6 @@ function doPost(e) {
             break;
           }
         }
-
         if (isValidUser) {
           tenantInfo.role = userRole;
           tenantInfo.userName = userName;
@@ -134,6 +113,15 @@ function doPost(e) {
   } catch (err) {
     return createJsonResponse({ status: "error", message: "マスターサーバーエラー: " + err.message });
   }
+}
+
+function createJsonResponse(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
+function getHeaderMap(sheet) {
+  if (!sheet || sheet.getLastRow() < 1) return {};
+  const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const map = {};
+  headers.forEach((h, i) => { if (h) map[String(h).trim()] = i; });
+  return map;
 }
 
 function extractTenantInfo(row, map) {
@@ -166,7 +154,6 @@ function generateNextCompanyId(sheet) {
 
 function createNewTenant(name, email, password) {
   try {
-    if (!name || !email || !password) return createJsonResponse({ status: "error", message: "必須項目が不足しています。" });
     const props = PropertiesService.getScriptProperties();
     const ss = SpreadsheetApp.openById(props.getProperty("MASTER_SS_ID"));
     const tenantSheet = ss.getSheetByName(props.getProperty("SHEET_TENANT"));
