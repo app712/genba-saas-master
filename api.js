@@ -37,7 +37,7 @@ function doPost(e) {
         if (String(tData[i][tMap["管理者メール"]]).trim() === String(email).trim() && 
             String(tData[i][tMap["初期パスワード"]]).trim() === String(password).trim()) {
           tenantInfo = extractTenantInfo(tData[i], tMap);
-          tenantInfo.role = "admin"; // 権限を管理者に設定
+          tenantInfo.role = "admin";
           tenantInfo.userName = "管理者";
           break;
         }
@@ -55,7 +55,6 @@ function doPost(e) {
       const password = payload.password;
       if (!compId || !userId || !password) return createJsonResponse({ status: "error", message: "必須項目を入力してください。" });
 
-      // 1. 企業IDからスプレッドシートIDを特定
       let tenantInfo = null;
       for (let i = 0; i < tData.length; i++) {
         if (String(tData[i][tMap["企業ID"]]).trim().toUpperCase() === String(compId).trim().toUpperCase()) {
@@ -65,7 +64,6 @@ function doPost(e) {
       }
       if (!tenantInfo) return createJsonResponse({ status: "error", message: "無効な企業IDです。" });
 
-      // 2. 企業の専用スプレッドシートを開き、「社員マスタ」を照合
       try {
         const clientSs = SpreadsheetApp.openById(tenantInfo.dbId);
         const staffSheet = clientSs.getSheetByName("社員マスタ");
@@ -83,7 +81,6 @@ function doPost(e) {
               String(sData[j][sMap["パスワード"]]).trim() === String(password).trim()) {
             isValidUser = true;
             userName = String(sData[j][sMap["氏名"]]).trim();
-            // 権限列があれば取得、なければstaff
             if (sMap["権限"] !== undefined) userRole = String(sData[j][sMap["権限"]]).trim() || "staff";
             break;
           }
@@ -121,9 +118,6 @@ function extractTenantInfo(row, map) {
   };
 }
 
-// ==========================================
-// 以下、既存の createNewTenant / generateNextCompanyId を残す
-// ==========================================
 function generateNextCompanyId(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return "CP-001";
