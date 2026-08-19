@@ -1,5 +1,5 @@
 // ==========================================
-// 1. 変数定義（プロパティを使わず直接指定）
+// 1. 変数定義（正確なIDを直接指定）
 // ==========================================
 const SAAS_MASTER_SS_ID = "1JNDUYWZLkxF8cEW8FXiIflkAIGE6DcMbXqQjO64NgXM";
 const TEMPLATE_SS_ID = "1mmQXbcUOGoKIlM6qWSGclY3G--BfkRTrKx5aG2vFNJY";
