@@ -82,17 +82,7 @@ function extractTenantInfo(row, map) {
 // 5. APIルーティング
 // ==========================================
 function doGet(e) {
-  try {
-    const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
-    const lastRow = sheet.getLastRow();
-    if (lastRow <= 1) return createJsonResponse({ status: "success", companies: [] });
-    
-    const data = sheet.getRange(2, 1, lastRow - 1, 12).getDisplayValues();
-    const companies = data.map(r => ({ companyId: r[0], companyName: r[1], createdAt: r[11] }));
-    return createJsonResponse({ status: "success", companies: companies });
-  } catch (err) { 
-    return createJsonResponse({ status: "error", message: err.message }); 
-  }
+  return handleGetCompanies(); // 一応残しておきます
 }
 
 function doPost(e) {
@@ -101,6 +91,8 @@ function doPost(e) {
     let payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
+    // ★★★ ここに getCompanies を確実に追加します ★★★
+    if (action === "getCompanies") return handleGetCompanies(); 
     if (action === "registerCompany") return handleRegisterCompany(payload);
     if (action === "deleteCompany") return handleDeleteCompany(payload);
     if (action === "getTenantInfo") return handleGetTenantInfo(payload); 
@@ -116,23 +108,15 @@ function doPost(e) {
 // ==========================================
 // 6. データ操作・照会ロジック
 // ==========================================
-function handleDeleteCompany(payload) {
-  const compId = String(payload.companyId || "").trim().toUpperCase();
+// ★★★ 一覧を取得して返す関数をここに追加 ★★★
+function handleGetCompanies() {
   const sheet = SpreadsheetApp.openById(SAAS_MASTER_SS_ID).getSheetByName(SHEET_COMPANIES);
   const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return createJsonResponse({ status: "error", message: "テナントが見つかりません" });
-
-  const data = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
-  for (let i = data.length - 1; i >= 0; i--) {
-    if (String(data[i][0]).trim().toUpperCase() === compId) {
-      const folderId = data[i][6]; 
-      let msgExt = "";
-      try { if (folderId) DriveApp.getFolderById(folderId).setTrashed(true); } catch(e) { msgExt = " (ドライブフォルダ削除スキップ)"; }
-      sheet.deleteRow(i + 2); 
-      return createJsonResponse({ status: "success", message: `テナント [${compId}] を削除しました。${msgExt}` });
-    }
-  }
-  return createJsonResponse({ status: "error", message: "テナントが見つかりません" });
+  if (lastRow <= 1) return createJsonResponse({ status: "success", companies: [] });
+  
+  const data = sheet.getRange(2, 1, lastRow - 1, 12).getDisplayValues();
+  const companies = data.map(r => ({ companyId: r[0], companyName: r[1], createdAt: r[11] }));
+  return createJsonResponse({ status: "success", companies: companies });
 }
 
 function handleGetTenantInfo(payload) {
