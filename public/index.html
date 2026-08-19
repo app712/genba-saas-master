@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SaaSマスター管理 | 現場のミカタ</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
 </head>
 <body class="bg-light">
   <nav class="navbar navbar-dark bg-dark mb-4 shadow-sm">
@@ -61,6 +62,20 @@
         </div>
       </div>
     </div>
+
+    <!-- デバッグログ表示エリア -->
+    <div class="row mt-4 mb-5">
+      <div class="col-12">
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-dark text-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-terminal"></i> 開発用システムログ</span>
+            <button onclick="document.getElementById('logContent').innerHTML=''" class="btn btn-sm btn-outline-light">クリア</button>
+          </div>
+          <div class="card-body bg-black text-light p-3" style="height: 250px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;" id="logContent">
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -69,14 +84,37 @@
     // ==========================================
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyg97hvDzBZTt5W1S9xBRGz--pcrlZLHPdzRfM6H8X_tIKbK-w4ozNeIoqbhQlrCC6d/exec";
 
-    window.onload = () => loadTenants();
+    // ログ出力用関数
+    function addLog(msg, type="info") {
+      const logBox = document.getElementById('logContent');
+      const time = new Date().toLocaleTimeString();
+      let color = type === 'error' ? '#ff6b6b' : (type === 'success' ? '#51cf66' : '#f8f9fa');
+      logBox.innerHTML += `<div style="color: ${color}; margin-bottom: 4px;">[${time}] ${msg}</div>`;
+      logBox.scrollTop = logBox.scrollHeight;
+      console.log(`[${type}] ${msg}`);
+    }
 
-    // ★ 以前成功していた GET通信の方式に完全復元
+    window.onload = () => {
+      addLog("画面の初期化完了。テナント一覧の取得を開始します。");
+      loadTenants();
+    };
+
     async function loadTenants() {
       const tbody = document.getElementById('tenantList');
+      addLog(`[GET] 宛先: ${GAS_URL.substring(0, 50)}...`);
+      
       try {
-        const res = await fetch(GAS_URL); // GET通信
+        const res = await fetch(GAS_URL);
+        addLog(`HTTPステータス: ${res.status} ${res.statusText}`, res.ok ? "success" : "error");
+        
+        if (!res.ok) {
+          const errText = await res.text();
+          addLog(`レスポンスエラー詳細: ${errText.substring(0, 100)}`, "error");
+          throw new Error(`HTTP ${res.status}`);
+        }
+
         const json = await res.json();
+        addLog(`データパース成功: 状態=${json.status}`, "success");
         
         if (json.status === "success") {
           tbody.innerHTML = "";
@@ -97,9 +135,11 @@
             `;
           });
         } else {
+          addLog(`GAS側エラー: ${json.message}`, "error");
           tbody.innerHTML = `<tr><td colspan='4' class='text-center py-3 text-danger'>エラー: ${json.message}</td></tr>`;
         }
       } catch (e) {
+        addLog(`[Failed to fetch] 致命的な通信エラー: ${e.name} - ${e.message}`, "error");
         tbody.innerHTML = `<tr><td colspan='4' class='text-center py-3 text-danger'>通信エラー: データの取得に失敗しました。<br><small>${e.message}</small></td></tr>`;
       }
     }
@@ -110,15 +150,23 @@
       const pass = document.getElementById('adminPass').value;
       const resDiv = document.getElementById('regResult');
 
-      if (!name || !email || !pass) return alert("全て入力してください。");
+      if (!name || !email || !pass) {
+        addLog("入力不足のため登録をキャンセルしました", "error");
+        return alert("全て入力してください。");
+      }
       
-      resDiv.innerText = "SaaS環境を構築中...\n（ドライブ生成等のため約10〜20秒かかります）";
+      resDiv.innerText = "SaaS環境を構築中...";
       resDiv.className = "mt-3 text-secondary";
+      
+      const payload = { action: "registerCompany", companyName: name, adminEmail: email, adminPass: pass };
+      addLog(`[POST] registerCompany: ${name}`);
 
       try {
-        const payload = { action: "registerCompany", companyName: name, adminEmail: email, adminPass: pass };
         const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
+        addLog(`HTTPステータス: ${res.status}`);
+        
         const json = await res.json();
+        addLog(`応答結果: ${json.status}`, json.status === "success" ? "success" : "error");
         
         if (json.status === "success") {
           resDiv.innerText = json.message;
@@ -132,6 +180,7 @@
           resDiv.className = "mt-3 text-danger";
         }
       } catch (e) {
+        addLog(`[Failed to fetch] 登録通信エラー: ${e.message}`, "error");
         resDiv.innerText = "通信エラーが発生しました。";
         resDiv.className = "mt-3 text-danger";
       }
@@ -140,18 +189,23 @@
     async function deleteTenant(compId) {
       if (!confirm(`本当にテナント [${compId}] を削除しますか？\n※Googleドライブ上のフォルダはゴミ箱に移動されます。`)) return;
       
+      addLog(`[POST] deleteCompany: ${compId}`);
+      const payload = { action: "deleteCompany", companyId: compId };
+
       try {
-        const payload = { action: "deleteCompany", companyId: compId };
         const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload), headers: { 'Content-Type': 'text/plain' } });
         const json = await res.json();
         
         if (json.status === "success") {
+          addLog(`削除成功: ${compId}`, "success");
           alert(json.message);
           loadTenants();
         } else {
+          addLog(`削除エラー: ${json.message}`, "error");
           alert("エラー: " + json.message);
         }
       } catch (e) {
+        addLog(`[Failed to fetch] 削除通信エラー: ${e.message}`, "error");
         alert("通信エラーが発生しました。");
       }
     }
