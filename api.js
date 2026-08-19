@@ -67,7 +67,6 @@ function setupSaaSBase() {
 // 3. APIルーティング
 // ==========================================
 function doGet(e) {
-  // ブラウザからの直接アクセス時のみ稼働
   try {
     const env = getEnv();
     const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);
@@ -85,7 +84,7 @@ function doPost(e) {
     let payload = JSON.parse(e.postData.contents);
     const action = payload.action;
 
-    if (action === "getCompanies") return handleGetCompanies(); // ★追加: 一覧取得をPOSTで処理
+    if (action === "getCompanies") return handleGetCompanies(); 
     if (action === "registerCompany") return handleRegisterCompany(payload);
     if (action === "getTenantInfo") return handleGetTenantInfo(payload);
     if (action === "deleteCompany") return handleDeleteCompany(payload);
@@ -101,7 +100,6 @@ function createJsonResponse(obj) {
 // ==========================================
 // 4. データ取得・照会・削除ロジック
 // ==========================================
-// ★追加: アプリからのテナント一覧取得ロジック
 function handleGetCompanies() {
   const env = getEnv();
   const sheet = SpreadsheetApp.openById(env.MASTER_SS_ID).getSheetByName(env.SHEET_COMPANIES);

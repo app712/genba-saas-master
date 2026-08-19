@@ -1,12 +1,11 @@
 // ==========================================
-// SaaSマスターのGAS URLを設定
+// SaaSマスターのGAS URL
 // ==========================================
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwKdfysmUkuu3duWOlx2euxsM7mzzsIo6vSfbYHCoK1M_VPXS3FOorv8AEIMRLQWFdY/exec";
 
 // 画面読み込み時にテナント一覧を取得
 window.onload = () => loadTenants();
 
-// ★修正: 一覧取得通信をGETからPOSTへ変更し、CORSエラーを回避
 async function loadTenants() {
   const tbody = document.getElementById('tenantList');
   try {
@@ -44,7 +43,6 @@ async function loadTenants() {
   }
 }
 
-// テナント新規登録
 async function registerTenant() {
   const name = document.getElementById('compName').value;
   const email = document.getElementById('adminEmail').value;
@@ -78,7 +76,6 @@ async function registerTenant() {
   }
 }
 
-// テナント削除
 async function deleteTenant(compId) {
   if (!confirm(`本当にテナント [${compId}] を削除しますか？\n※Googleドライブ上のフォルダはゴミ箱に移動されます。`)) return;
   
