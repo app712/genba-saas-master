@@ -63,6 +63,7 @@
       </div>
     </div>
 
+    <!-- デバッグログ表示エリア -->
     <div class="row mt-4 mb-5">
       <div class="col-12">
         <div class="card shadow-sm border-0">
@@ -81,14 +82,16 @@
     // ==========================================
     // 最新のGAS URL
     // ==========================================
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyg97hvDzBZTt5W1S9xBRGz--pcrlZLHPdzRfM6H8X_tIKbK-w4ozNeIoqbhQlrCC6d/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxSPDuRF8zEiJQTt5tN7SWiset-WTLkqO_K6ab8BmC-Zvxe4D6hHP8mmlXEqsY2vw2m/exec";
 
+    // ログ出力用関数
     function addLog(msg, type="info") {
       const logBox = document.getElementById('logContent');
       const time = new Date().toLocaleTimeString();
       let color = type === 'error' ? '#ff6b6b' : (type === 'success' ? '#51cf66' : '#f8f9fa');
       logBox.innerHTML += `<div style="color: ${color}; margin-bottom: 4px;">[${time}] ${msg}</div>`;
       logBox.scrollTop = logBox.scrollHeight;
+      console.log(`[${type}] ${msg}`);
     }
 
     window.onload = () => {
@@ -98,9 +101,10 @@
 
     async function loadTenants() {
       const tbody = document.getElementById('tenantList');
-      addLog(`[POST] 宛先: ${GAS_URL.substring(0, 50)}...`);
+      addLog(`[POST] 宛先: ${GAS_URL.substring(0, 50)}...`); // ログもPOSTに変更
       
       try {
+        // ★ POST通信に書き換え
         const payload = { action: "getCompanies" };
         const res = await fetch(GAS_URL, { 
           method: "POST", 
@@ -172,7 +176,7 @@
         addLog(`応答結果: ${json.status}`, json.status === "success" ? "success" : "error");
         
         if (json.status === "success") {
-          resDiv.innerText = "構築完了しました";
+          resDiv.innerText = json.message;
           resDiv.className = "mt-3 text-success";
           document.getElementById('compName').value = "";
           document.getElementById('adminEmail').value = "";
