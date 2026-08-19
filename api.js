@@ -98,8 +98,9 @@ function doPost(e) {
     if (action === "login_admin") return handleLoginAdmin(payload);
     if (action === "login_staff") return handleLoginStaff(payload);
     
-    // ★追加: ダッシュボード用データ取得ルート
+    // ★追加: データ取得＆テストデータ投入
     if (action === "getDashboardData") return handleGetDashboardData(payload);
+    if (action === "addTestData") return handleAddTestData(payload);
 
     return createJsonResponse({ status: "error", message: "不明なアクション: " + action });
   } catch (err) { 
@@ -147,7 +148,6 @@ function handleGetTenantInfo(payload) {
   }
 }
 
-// ★追加: テナント専用DBからデータを読み取る処理
 function handleGetDashboardData(payload) {
   const dbId = payload.dbId;
   if (!dbId) return createJsonResponse({ status: "error", message: "DBのIDが指定されていません" });
@@ -155,20 +155,18 @@ function handleGetDashboardData(payload) {
   try {
     const db = SpreadsheetApp.openById(dbId);
     
-    // 社員マスタのデータ行数をカウント
     const empSheet = db.getSheetByName("社員マスタ");
     let empCount = 0;
     if (empSheet) {
       const lastRow = empSheet.getLastRow();
-      empCount = lastRow > 1 ? lastRow - 1 : 0; // ヘッダー行をマイナス
+      empCount = lastRow > 1 ? lastRow - 1 : 0; 
     }
 
-    // 現場マスタのデータ行数をカウント
     const siteSheet = db.getSheetByName("現場マスタ");
     let siteCount = 0;
     if (siteSheet) {
       const lastRow = siteSheet.getLastRow();
-      siteCount = lastRow > 1 ? lastRow - 1 : 0; // ヘッダー行をマイナス
+      siteCount = lastRow > 1 ? lastRow - 1 : 0; 
     }
 
     return createJsonResponse({ 
@@ -177,6 +175,35 @@ function handleGetDashboardData(payload) {
     });
   } catch (err) {
     return createJsonResponse({ status: "error", message: "テナントDBアクセスエラー: " + err.message });
+  }
+}
+
+// ★追加: テストデータを自動追加するロジック
+function handleAddTestData(payload) {
+  const dbId = payload.dbId;
+  if (!dbId) return createJsonResponse({ status: "error", message: "DBのIDが指定されていません" });
+
+  try {
+    const db = SpreadsheetApp.openById(dbId);
+    const empSheet = db.getSheetByName("社員マスタ");
+    const siteSheet = db.getSheetByName("現場マスタ");
+    
+    let empCount = empSheet ? empSheet.getLastRow() : 0;
+    let siteCount = siteSheet ? siteSheet.getLastRow() : 0;
+
+    if (empSheet) {
+      empSheet.appendRow([`EMP-${String(empCount).padStart(3, '0')}`, "テスト太郎", "現場", "日給", 10000, 0, 0, 0, 0, "なし", "有効", "test1@example.com", "", "", "", "一般", `test${empCount}`, "pass123", "従業員"]);
+      empSheet.appendRow([`EMP-${String(empCount+1).padStart(3, '0')}`, "テスト花子", "事務", "月給", 250000, 0, 0, 0, 0, "なし", "有効", "test2@example.com", "", "", "", "一般", `test${empCount+1}`, "pass123", "従業員"]);
+    }
+
+    if (siteSheet) {
+      siteSheet.appendRow([`SITE-${String(siteCount).padStart(3, '0')}`, "テスト開発プロジェクト", "他社", 1000000, "2026-08-01", "2026-12-31", "テスト太郎", "進行中"]);
+      siteSheet.appendRow([`SITE-${String(siteCount+1).padStart(3, '0')}`, "テスト改修工事", "自社", 500000, "2026-09-01", "2026-11-30", "テスト花子", "予定"]);
+    }
+
+    return createJsonResponse({ status: "success", message: "社員マスタ・現場マスタにテストデータを各2件追加しました。" });
+  } catch (err) {
+    return createJsonResponse({ status: "error", message: "データ追加エラー: " + err.message });
   }
 }
 
