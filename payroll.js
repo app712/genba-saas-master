@@ -15,6 +15,7 @@ const MONTHLY_OVERTIME_THRESHOLD_H = 60;      // 時間外割増率が引き上�
 const NIGHT_START_HOUR = 22;                  // 深夜割増の開始時刻
 const NIGHT_END_HOUR = 5;                     // 深夜割増の終了時刻
 const DEPENDENTS_EXTRA_DEDUCTION = 1610;      // 扶養親族8人目以降、1人あたりの税額控除（国税庁・源泉徴収税額表の備考）
+const PUBLIC_TRANSIT_TAX_FREE_LIMIT = 150000; // 公共交通機関利用者の通勤手当非課税限度額（月額、国税庁No.2582）
 
 // ==========================================
 // 2. APIハンドラ
@@ -559,9 +560,8 @@ function calcEmploymentInsurancePremium(grossWage, rateRow, rateMap) {
 function calcCommutingAllowanceTaxFree(commuteMethod, distanceKm, monthlyAllowance, commuteRows, commuteMap) {
   if (monthlyAllowance <= 0) return { taxFree: 0, taxable: 0 };
   if (!commuteMethod || commuteMethod === "なし" || commuteMethod === "公共交通機関") {
-    // 骨組みスコープ: 公共交通機関の非課税限度額(実費相当、月15万円上限)は次フェーズで対応。
-    // 今回はマイカー等・自転車通勤者の距離別限度額のみ実装する。
-    return { taxFree: monthlyAllowance, taxable: 0 };
+    const taxFree = Math.min(monthlyAllowance, PUBLIC_TRANSIT_TAX_FREE_LIMIT);
+    return { taxFree: taxFree, taxable: monthlyAllowance - taxFree };
   }
   const dist = Number(distanceKm) || 0;
   let limit = 0;
@@ -673,9 +673,7 @@ function processSingleEmployeePayroll(empRow, empMap, payrollRow, payrollMap, ta
 
   const commuteMethod = String(empRow[empMap["通勤手段"]]).trim();
   const commuteDistance = Number(empRow[empMap["通勤距離(km)"]]) || 0;
-  // 骨組みスコープ: 社員マスタに固定の通勤手当支給額列を持たせていないため、今回は非課税判定ロジックの
-  // 検証用に0円起点で計算する（実運用では通勤手当の実支給額を社員マスタまたは勤怠データに追加する）。
-  const commuteAllowanceInput = 0;
+  const commuteAllowanceInput = Number(empRow[empMap["通勤手当(月額)"]]) || 0;
   const commute = calcCommutingAllowanceTaxFree(commuteMethod, commuteDistance, commuteAllowanceInput, ctx.commuteRows, ctx.commuteMap);
 
   const grossPay = basePayAmount + fixedAllowance + overtimePay + nightPay + holidayPay + commute.taxFree + commute.taxable;
